@@ -132,6 +132,7 @@ test('sidepanel connection check reports a missing content script and API authen
       const event={addListener(){}};
       window.chrome={storage:{sync:{get:async defaults=>defaults},local:{get:async()=>({apiUrl:'https://example.invalid/translate',apiKey:'test-key'})},session:{get:async()=>({})},onChanged:event},tabs:{query:async()=>[{id:1,url:'https://www.netflix.com/watch/123',title:'Movie | Netflix'}],onActivated:event,onUpdated:event,sendMessage:async()=>{throw Error('Receiving end does not exist');}}};
     });
+    await page.addScriptTag({content:fs.readFileSync(path.join(root,'providers.js'),'utf8')});
     await page.addScriptTag({content:panel});
     await page.waitForFunction(()=>document.body.dataset.ready==='1');
     await page.locator('#check-connection').click();

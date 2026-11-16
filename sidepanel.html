@@ -8,7 +8,7 @@
   <body>
     <header class="topbar">
       <div class="title-block">
-        <div class="app">Hover Translate</div>
+        <div class="app"><img src="icons/icon32.png" width="18" height="18" alt="" /> Hover Translate</div>
         <div id="work-title" class="work">Video Hover Translate</div>
       </div>
       <span id="status-pill" class="pill">再生ページ以外</span>
@@ -76,6 +76,8 @@
     <main id="view-study" class="view" hidden>
       <section class="card">
         <div class="card-head"><h2>これまでに調べた語</h2><span id="library-count" class="hint"></span></div>
+        <div class="study-actions"><button id="load-demo" class="secondary">サンプルで試す</button><button id="exit-demo" class="secondary" hidden>自分の単語に戻る</button></div>
+        <p id="demo-notice" class="demo-notice" hidden>デモモードです。サンプルの回答は自分の履歴・学習記録に保存しません。</p>
         <p id="study-stats" class="muted"></p>
         <label class="study-field">検索<input id="library-search" class="search" type="search" placeholder="英語・日本語・作品名" /></label>
         <label class="study-field">種類<select id="library-kind"><option value="all">すべて</option><option value="word">単語</option><option value="phrase">熟語</option><option value="span">選択した範囲</option></select></label>
@@ -83,11 +85,13 @@
       </section>
       <section class="card">
         <div class="card-head"><h2>復習クイズ</h2></div>
+        <div class="study-actions"><label>出題 <select id="review-mode"><option value="all">すべての語</option><option value="due">今日の復習</option></select></label></div>
         <div class="study-actions">
           <label>問題数 <select id="quiz-count"><option value="5">5問</option><option value="10" selected>10問</option><option value="20">20問</option></select></label>
           <button id="start-quiz" class="primary" disabled>クイズを始める</button>
         </div>
         <label class="switch"><input id="mistakes-only" type="checkbox" /><span>前回間違えた語だけ</span></label>
+        <p class="muted">正解した語は1・3・7・14・30・60日後へ。間違えた語は10分後に再復習します。</p>
         <p id="quiz-summary" class="message" role="status">出題は検索・種類の絞り込みに従います。</p>
         <div id="quiz-session" hidden>
           <p id="quiz-position" class="hint"></p>
@@ -127,15 +131,21 @@
 
       <section class="card">
         <div class="card-head"><h2><i data-icon="key" data-size="13"></i>翻訳 API</h2></div>
+        <div class="field"><label for="provider">翻訳エンジン</label><select id="provider"><option value="custom">カスタム翻訳API（従来の設定）</option><option value="openai">OpenAI互換API</option><option value="ollama">Ollama（ローカル）</option></select></div>
+        <p id="provider-help" class="muted"></p>
+        <div class="field" id="model-field" hidden><label for="model">モデル名</label><input type="text" id="model" autocomplete="off" placeholder="gpt-4.1-mini / qwen3:8b" /></div>
         <div class="field">
           <label for="apiUrl">API エンドポイント URL</label>
           <input type="text" id="apiUrl" placeholder="https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod/translate" />
         </div>
-        <div class="field">
+        <div class="field" id="key-field">
           <label for="apiKey">API キー</label>
           <input type="password" id="apiKey" autocomplete="off" />
         </div>
-        <div class="actions"><button id="save" class="primary">保存</button><span id="status"></span></div>
+        <div class="actions"><button id="save" class="primary">保存</button><span id="status" role="status"></span></div>
+        <div class="actions"><button id="test-api" class="secondary">保存済みの設定で接続テスト</button></div>
+        <p id="api-test-status" class="message" role="status"></p>
+        <p class="muted">テストでは短い例文を1回翻訳します。新しい接続先は保存時にChromeの許可を求めます。</p>
       </section>
 
       <footer class="credits">
@@ -147,6 +157,7 @@
       </footer>
     </main>
     <script src="data/vocab-levels.js"></script>
+    <script src="providers.js"></script>
     <script src="study-core.js"></script>
     <script src="sidepanel.js"></script>
     <script src="study-ui.js"></script>

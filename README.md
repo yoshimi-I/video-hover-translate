@@ -1,6 +1,23 @@
+<p align="center"><img src="icons/icon128.png" width="88" alt="Video Hover Translate icon" /></p>
+
 # Video Hover Translate
 
+**Watch. Discover a word. Remember it.**
+
+[English](README.en.md) · [Download](https://github.com/yoshimi-I/video-hover-translate/releases/latest) · [Report a bug](https://github.com/yoshimi-I/video-hover-translate/issues)
+
+![Tests](https://github.com/yoshimi-I/video-hover-translate/actions/workflows/test.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/code-MIT-35d8c7)
+
 Netflix・Disney+の英語字幕にマウスを合わせて日本語訳を表示する、Chrome Manifest V3拡張です。調べた単語をためて、動画を閉じたあともクイズで復習できます。
+
+## キーなしで試す
+
+拡張をインストールして、サイドパネルの「単語帳・クイズ」→「サンプルで試す」を押してください。動画・アカウント・APIキーなしで単語帳、クイズ、書き出しを試せます。サンプルの回答は実際の履歴に保存せず、ネットワーク通信も行いません。
+
+<p><img src="docs/images/library.png" width="310" alt="サンプルの単語帳と今日の復習" /> <img src="docs/images/quiz.png" width="310" alt="サンプルの英語から日本語への復習クイズ" /></p>
+
+*スクリーンショットはプロジェクト独自のサンプル例文です。配信サービスの映像・字幕や利用者の履歴は含みません。*
 
 ## できること
 
@@ -8,6 +25,8 @@ Netflix・Disney+の英語字幕にマウスを合わせて日本語訳を表示
 - ホバー中の一時停止と再開、CEFRレベルの目安表示
 - 全作品で調べた語をまとめる単語帳、英語・日本語・作品名検索
 - 最大4択の復習クイズ（5・10・20問）、正誤記録、前回間違えた語の復習
+- 復習期限を管理する「今日の復習」
+- OpenAI互換API・ローカルのOllama・従来のカスタムAPIの切り替え
 - CSV、JSON、Anki用TSVのエクスポート
 - ページ接続・字幕取得・API設定の診断
 
@@ -23,13 +42,34 @@ Netflix・Disney+の英語字幕にマウスを合わせて日本語訳を表示
 
 Netflix / Disney+とは独立した非公式プロジェクトです。画像だけで配信される字幕は読み取れません。各サービスの画面変更で字幕の検出に影響が出る場合があります。
 
-## 翻訳APIについて
+## 翻訳エンジンを選ぶ
 
-このリポジトリにはChrome拡張のコードを含みます。翻訳サーバーの実装・共有APIキー・無料の翻訳サービスは含みません。翻訳には各利用者が利用できる互換APIが必要です。既存履歴の復習と書き出しはAPI通信なしで使えます。
+専用AWSサーバーは不要です。設定画面で次から選び、保存後に「接続テスト」を押します。既存ユーザーのカスタムAPI設定はそのまま使えます。
 
-現在のURL入力と権限は、東京リージョンのAWS API Gateway (`https://<api-id>.execute-api.ap-northeast-1.amazonaws.com/<stage>/translate`) に対応します。他のホストを使う場合は `manifest.json` の権限と `sidepanel.js` のURL検証も変更してください。
+| エンジン | 接続先の例 | キー | 必要な準備 |
+| --- | --- | --- | --- |
+| OpenAI互換API | `https://api.openai.com/v1/chat/completions` | 各自のAPIキー | Chat CompletionsとJSON出力に対応するモデル（初期値 `gpt-4.1-mini`） |
+| Ollama | `http://localhost:11434/v1/chat/completions` | 不要 | Ollamaの起動とモデルの導入（初期値 `qwen3:8b`） |
+| カスタム翻訳API | `https://<host>/<stage>/translate` | 各自のキー | [互換API](docs/API.md) のサーバー |
 
-リクエスト・レスポンスは [API仕様](docs/API.md) を参照してください。各自のAPIキーは設定画面に入力し、ソースやIssueには記載しないでください。
+モデル名や利用できるサービスは各自のアカウント・サーバーに合わせて変更してください。OpenAI互換を名乗るすべてのAPIでの動作は保証しません。`response_format: {type: "json_object"}` と必要なJSON応答に対応する必要があります。
+
+新しい接続先は「保存」を押したときに、そのホストだけChromeのアクセス許可を求めます。HTTPは `localhost` と `127.0.0.1` に限定します。エンジンを変更すると別サービスへ古いキーを送らないよう入力を切り替えます。
+
+### Ollamaの例
+
+```sh
+ollama pull qwen3:8b
+ollama serve
+```
+
+すでにOllamaのアプリやサービスが動いている場合、追加の `ollama serve` は不要です。接続が拒否される場合は、Ollamaの `OLLAMA_ORIGINS` にこの拡張のオリジン `chrome-extension://<拡張ID>` を許可してサーバーを再起動してください。設定方法はOS・起動方法により異なります。[公式ドキュメント](https://docs.ollama.com/api/openai-compatibility) を参照してください。
+
+ローカルモデルの速度・JSON出力品質はハードウェアとモデルによります。モデル導入や実際の翻訳品質は自分の環境で接続テストしてください。クラウドモデルをOllama側で選べば、そのサーバーからクラウドへ送られる場合があります。
+
+**翻訳を有効にすると字幕ごとにAPIへ要求します。** クラウドAPIは課金・レート制限の対象になり得ます。接続テストも短い例文を1回送信します。共有キーは配布しません。ChatGPT等のサブスクリプションとは別に、利用先でAPIを準備してください。
+
+既存履歴の復習・書き出し・サンプルデモはAPI通信なしで動きます。
 
 ## 単語帳・クイズ
 
@@ -37,11 +77,17 @@ Netflix / Disney+とは独立した非公式プロジェクトです。画像だ
 
 クイズは検索と種類の絞り込みを反映し、セッション中は同じカードを重複出題しません。訳が2～3種類しかなければ選択肢も減り、1種類だけなら答えを見て「覚えていた／まだ覚えていない」で自己採点します。正誤はローカルに保存し、「前回間違えた語だけ」で復習できます。誤答の選択肢は過去の日本語訳を使うため、文脈によって別の選択肢も意味的に成立する場合があります。
 
+### 今日の復習
+
+出題を「今日の復習」にすると、未回答と復習期限の来た語だけ出題します。正解は連続正解数に応じて1・3・7・14・30・60日後に、誤答は10分後に予定します。旧バージョンの正誤記録は保持し、期限未設定の語を復習対象にします。
+
+これはシンプルな固定間隔のスケジュールです。FSRS / Anki互換スケジューラーではなく、学習効果を保証するものでもありません。
+
 ## エクスポート
 
 検索と種類で絞り込んだ単語が対象です。
 
-- **CSV**: UTF-8 BOM付き。英語、日本語、種類、例文、作品、調べた回数、日時、クイズの回答数・正解数。表計算ソフトの数式として実行されそうな文字列には先頭にアポストロフィを付けます。
+- **CSV**: UTF-8 BOM付き。英語、日本語、種類、例文、作品、調べた回数、日時、クイズの回答数・正解数・次回復習日時。表計算ソフトの数式として実行されそうな文字列には先頭にアポストロフィを付けます。
 - **JSON**: バージョン付きの単語・学習記録。APIキーや設定を含みません。現時点でインポート機能はありません。
 - **Anki TSV**: 英語・日本語の2列。Ankiで「基本」ノートにタブ区切りで取り込んでください。改行は空白に変換し、HTMLとして扱わない設定で使います。
 
@@ -51,13 +97,15 @@ Netflix / Disney+とは独立した非公式プロジェクトです。画像だ
 
 ## 開発
 
-Node.js 20以上が必要です。ZIP作成にはmacOS / Linuxの `zip` コマンドを使います。macOSではインストール済みのGoogle Chromeでブラウザーテストを実行します。
+Node.js 22以上が必要です。ZIP作成にはmacOS / Linuxの `zip` コマンドを使います。macOSではインストール済みのGoogle Chromeでブラウザーテストを実行します。
 
 ```sh
 npm ci
 npm run check
 npm test
 npm run pack
+# SVGからアイコンを再生成: npm run icons
+# サンプル画面を再撮影: npm run screenshots
 ```
 
 LinuxやChromeを入れていない環境では、PlaywrightのChromiumを使います。
@@ -70,6 +118,7 @@ CI=1 npm test
 `npm run pack` は配布に必要なファイルとライセンスを `dist/video-hover-translate-<version>.zip` にまとめます。学習履歴・API設定・node_modules・テスト用データは含めません。
 
 ```text
+providers.js           接続先設定・OpenAI互換/Ollamaの翻訳アダプター
 content.js             字幕検出・表示・動画操作
 sw.js                  翻訳API・キャッシュ・履歴保存（Zod同梱）
 sidepanel.js           視聴中の集計・設定（Lucide同梱）
@@ -77,7 +126,7 @@ study-core.js          履歴の集約、クイズ、エクスポートの純粋
 study-store.js         複数ウィンドウの回答を直列に保存
 study-ui.js            単語帳・クイズの画面制御
 sidepanel.html/.css    サイドパネル
- data/vocab-levels.js  語彙レベルデータ（別ライセンス）
+data/vocab-levels.js  語彙レベルデータ（別ライセンス）
 tests/                 単体・ブラウザーの回帰テスト
 ```
 

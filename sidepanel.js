@@ -402,30 +402,10 @@
     await chrome.storage.sync.set(settings);
   }
   async function loadApiFields() {
-    const { apiUrl, apiKey } = await chrome.storage.local.get(["apiUrl", "apiKey"]);
-    return { apiUrl: apiUrl ?? "", apiKey: apiKey ?? "" };
+    return globalThis.VHTProviders.normalize(await chrome.storage.local.get(["provider", "apiUrl", "apiKey", "model"]));
   }
   async function saveApiConfig(config) {
     await chrome.storage.local.set(config);
-  }
-
-  // src/sidepanel/save-status.ts
-  var API_URL_PATTERN = /^https:\/\/[a-z0-9]+\.execute-api\.ap-northeast-1\.amazonaws\.com\//;
-  var MISSING = {
-    url: "API \u30A8\u30F3\u30C9\u30DD\u30A4\u30F3\u30C8 URL \u304C\u672A\u5165\u529B\u3067\u3059",
-    key: "API \u30AD\u30FC\u304C\u672A\u5165\u529B\u3067\u3059",
-    both: "API \u30A8\u30F3\u30C9\u30DD\u30A4\u30F3\u30C8 URL \u3068 API \u30AD\u30FC\u304C\u672A\u5165\u529B\u3067\u3059"
-  };
-  var WRONG_REGION = "URL \u304C ap-northeast-1 \u306E execute-api \u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  var NOT_TRANSLATE = "URL \u306E\u672B\u5C3E\u304C /translate \u3067\u306F\u3042\u308A\u307E\u305B\u3093";
-  function saveStatus(apiUrl, apiKey) {
-    const notes = [];
-    if (!apiUrl && !apiKey) notes.push(MISSING.both);
-    else if (!apiUrl) notes.push(MISSING.url);
-    else if (!apiKey) notes.push(MISSING.key);
-    if (apiUrl && !API_URL_PATTERN.test(apiUrl)) notes.push(WRONG_REGION);
-    if (apiUrl && !apiUrl.endsWith("/translate")) notes.push(NOT_TRANSLATE);
-    return notes.length === 0 ? { ok: true, text: "\u4FDD\u5B58\u3057\u307E\u3057\u305F" } : { ok: false, text: `\u4FDD\u5B58\u3057\u307E\u3057\u305F\uFF08\u6CE8\u610F: ${notes.join("\u3002")}\uFF09` };
   }
 
   // src/sidepanel/settings-tab.ts
@@ -439,16 +419,53 @@
     pause.checked = settings.pauseOnHover;
     enabled.addEventListener("change", () => void saveSettings({ enabled: enabled.checked }));
     pause.addEventListener("change", () => void saveSettings({ pauseOnHover: pause.checked }));
-    input("apiUrl").value = api.apiUrl;
-    input("apiKey").value = api.apiKey;
+    const provider = input("provider");
+    function showConfig(config) {
+      provider.value = config.provider;
+      input("apiUrl").value = config.apiUrl;
+      input("apiKey").value = config.apiKey;
+      input("model").value = config.model;
+      input("model-field").hidden = config.provider === "custom";
+      input("key-field").hidden = config.provider === "ollama";
+      input("provider-help").textContent = config.provider === "ollama" ? "ローカルのOllamaに接続します。モデルの導入と拡張の接続許可が必要です。字幕は設定したローカルサーバーに送ります。" : config.provider === "openai" ? "OpenAI互換のChat Completions APIを利用します。再生中は字幕ごとに翻訳を要求します。字幕が送信され、利用料金が発生する場合があります。" : "従来の /translate・/translate-span APIを利用します。";
+    }
+    showConfig(api);
+    provider.addEventListener("change", () => {
+      const next = provider.value === api.provider ? api : globalThis.VHTProviders.normalize({ provider: provider.value });
+      showConfig(next);
+      input("status").textContent = "変更はまだ保存されていません。";
+      input("api-test-status").textContent = "";
+    });
     doc.getElementById("save").addEventListener("click", async () => {
-      const apiUrl = input("apiUrl").value.trim();
-      const apiKey = input("apiKey").value.trim();
-      await saveApiConfig({ apiUrl, apiKey });
-      const status = doc.getElementById("status");
-      const result = saveStatus(apiUrl, apiKey);
-      status.className = result.ok ? "ok" : "warn";
-      status.textContent = result.text;
+      const config = { provider: provider.value, apiUrl: input("apiUrl").value.trim(), apiKey: provider.value === "ollama" ? "" : input("apiKey").value.trim(), model: input("model").value.trim() };
+      const result = globalThis.VHTProviders.validate(config);
+      const status = input("status");
+      status.className = "warn";
+      if (!result.ok) { status.textContent = result.text; return; }
+      const controls = [input("save"), provider, input("apiUrl"), input("apiKey"), input("model")];
+      controls.forEach(control => { control.disabled = true; });
+      // Invoke directly in the click gesture, before awaiting storage or any other operation.
+      try {
+        const granted = await chrome.permissions.request({ origins: [globalThis.VHTProviders.originPattern(config.apiUrl)] });
+        if (!granted) { status.textContent = "接続先へのアクセスが許可されなかったため、設定は変更していません。"; return; }
+        await saveApiConfig(config);
+        Object.assign(api, config);
+        status.className = "ok";
+        status.textContent = "保存しました";
+        input("api-test-status").textContent = "";
+      } catch { status.textContent = "設定を保存できませんでした。拡張を再読み込みして再試行してください。"; }
+      finally { controls.forEach(control => { control.disabled = false; }); }
+    });
+    input("test-api").addEventListener("click", async () => {
+      const button = input("test-api"), status = input("api-test-status");
+      button.disabled = true;
+      status.textContent = "保存済みの設定で翻訳をテスト中…";
+      try {
+        const reply = await chrome.runtime.sendMessage({ type: "testApi" });
+        const errors = { forbidden: "認証エラー。APIキーを確認してください。", network: "接続できません。URL・接続許可・ローカルサーバーの起動を確認してください。", timeout: "タイムアウトしました。モデルの準備状況を確認してください。", "no-api-key": "API設定を保存してください。", "bad-request": "APIまたはモデルがリクエストに対応していません。", server: "モデルの応答が必要なJSON形式ではありません。モデル名や対応APIを確認してください。", throttled: "APIの回数制限に達しました。" };
+        status.textContent = reply?.ok ? `接続成功: ${reply.translation}` : errors[reply?.error] ?? "テストに失敗しました。拡張を再読み込みしてください。";
+      } catch { status.textContent = "テストできませんでした。拡張を再読み込みしてください。"; }
+      finally { button.disabled = false; }
     });
   }
 
@@ -575,7 +592,7 @@
         `字幕: ${state.subtitlesReadable ? "取得済み" : "未取得"} / Netflix字幕要素: ${state.netflixContainers}`,
         `表示中の単語: ${state.tokenCount}`,
         `マウス操作: ${state.pointerReachable === null ? "字幕待ち" : state.pointerReachable ? "届いています" : "他の要素に遮られています"}`,
-        `API設定: ${api.apiUrl && api.apiKey ? "保存済み" : "URL またはキーが未設定"}`,
+        `API設定: ${globalThis.VHTProviders.validate(api).ok ? "保存済み" : "URL・キー・モデルの設定を確認してください"}`,
         `翻訳: ${state.translationState === "ready" ? "成功" : state.translationState === "loading" ? "処理中" : state.translationState === "error" ? errors[state.translationError] ?? state.translationError ?? "エラー" : "字幕待ち"}`
       ];
       box.textContent = lines.join("\n");

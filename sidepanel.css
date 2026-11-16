@@ -142,3 +142,10 @@ button:focus-visible, select:focus-visible { outline: 2px solid #93c5fd; outline
 .quiz-options button[data-answer="wrong"] { border-color: #fb7185; color: #fda4af; opacity: 1; }
 #view-study [hidden] { display: none; }
 #view-study .message { overflow-wrap: anywhere; }
+
+.demo-notice { border: 1px solid #2dd4bf; color: #99f6e4; border-radius: 8px; padding: 10px; background: #102b30; }
+.field[hidden] { display: none; }
+.field select { width: 100%; min-width: 0; }
+
+.app { display: flex; align-items: center; gap: 6px; }
+.app img { flex: none; }

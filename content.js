@@ -1013,7 +1013,7 @@
     const rect = token?.getBoundingClientRect();
     const hit = rect ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : null;
     sendResponse({
-      version: "0.4.0",
+      version: "0.5.0",
       enabled: settings.enabled,
       running,
       videoFound: Boolean(findVideo()),

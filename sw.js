@@ -1,5 +1,5 @@
 "use strict";
-importScripts("study-core.js", "study-store.js");
+importScripts("study-core.js", "study-store.js", "providers.js");
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -19763,12 +19763,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 
   // src/common/settings.ts
   async function loadApiFields() {
-    const { apiUrl, apiKey } = await chrome.storage.local.get(["apiUrl", "apiKey"]);
-    return { apiUrl: apiUrl ?? "", apiKey: apiKey ?? "" };
+    return globalThis.VHTProviders.normalize(await chrome.storage.local.get(["provider", "apiUrl", "apiKey", "model"]));
   }
   async function loadApiConfig() {
     const fields = await loadApiFields();
-    return fields.apiUrl && fields.apiKey ? fields : null;
+    return globalThis.VHTProviders.validate(fields).ok ? fields : null;
   }
 
   // src/background/api.ts
@@ -19793,7 +19792,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         method: "POST",
         headers: { "content-type": "application/json", "x-api-key": apiKey },
         body: JSON.stringify(body),
-        signal: controller.signal
+        signal: controller.signal,
+        redirect: "error"
       });
       if (res.status === 429) return "throttled";
       if (res.status === 403) return { ok: false, error: "forbidden" };
@@ -19816,9 +19816,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
     return second === "throttled" ? { ok: false, error: "throttled" } : second;
   }
   function callTranslate(cfg, body, deps) {
+    if (cfg.provider !== "custom") return globalThis.VHTProviders.translate(cfg, body, { ...deps, parse: parseTranslate });
     return post(cfg.apiUrl, cfg, body, parseTranslate, deps);
   }
   function callTranslateSpan(cfg, body, deps) {
+    if (cfg.provider !== "custom") return globalThis.VHTProviders.translate(cfg, body, { ...deps, span: true, parse: parseSpan });
     let url2;
     try {
       url2 = spanUrl(cfg.apiUrl);
@@ -20055,31 +20057,33 @@ ${normalizeText(text)}`);
     inflight = /* @__PURE__ */ new Map();
     spanInflight = /* @__PURE__ */ new Map();
     async translate(msg) {
-      const key = await cacheKey(msg.text);
+      const cfg = await this.deps.loadApiConfig();
+      if (!cfg) return { ok: false, error: "no-api-key" };
+      const key = await cacheKey(globalThis.VHTProviders.cacheNamespace(cfg) + "\n" + JSON.stringify([msg.text, msg.tokens, msg.context]));
       return dedupe(
         this.inflight,
         key,
-        () => this.resolve(this.deps.cache, key, (cfg) => this.deps.callApi(cfg, { text: msg.text, tokens: msg.tokens, context: msg.context }))
+        () => this.resolve(this.deps.cache, key, () => this.deps.callApi(cfg, { text: msg.text, tokens: msg.tokens, context: msg.context }))
       );
     }
     async translateSpan(msg) {
-      const key = await cacheKey(spanCacheText(msg));
+      const cfg = await this.deps.loadApiConfig();
+      if (!cfg) return { ok: false, error: "no-api-key" };
+      const key = await cacheKey(globalThis.VHTProviders.cacheNamespace(cfg) + "\n" + JSON.stringify([spanCacheText(msg), msg.tokens, msg.context]));
       return dedupe(
         this.spanInflight,
         key,
         () => this.resolve(
           this.deps.spanCache,
           key,
-          (cfg) => this.deps.callSpanApi(cfg, { text: msg.text, tokens: msg.tokens, context: msg.context, start: msg.start, end: msg.end })
+          () => this.deps.callSpanApi(cfg, { text: msg.text, tokens: msg.tokens, context: msg.context, start: msg.start, end: msg.end })
         )
       );
     }
     async resolve(cache, key, call) {
       const cached2 = await cache.get(key);
       if (cached2) return { ok: true, result: cached2 };
-      const cfg = await this.deps.loadApiConfig();
-      if (!cfg) return { ok: false, error: "no-api-key" };
-      const res = await call(cfg);
+      const res = await call();
       if (res.ok) {
         await cache.put(key, res.result).catch((err) => console.warn("cache put failed", err));
       }
@@ -20120,6 +20124,15 @@ ${normalizeText(text)}`);
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const msg = message;
     const tabId = sender.tab?.id;
+    if (msg?.type === "testApi") {
+      loadApiConfig().then((cfg) => cfg
+        ? callTranslate(cfg, { text: "Hello world", tokens: ["Hello", "world"], context: [] }, apiDeps)
+        : { ok: false, error: "no-api-key" }).then(
+        (reply) => sendResponse({ ok: reply.ok, error: reply.error, translation: reply.ok ? reply.result.sentence.ja : undefined }),
+        () => sendResponse({ ok: false, error: "network" })
+      );
+      return true;
+    }
     if (msg?.type === "studyAnswer") {
       studyReviews.record(msg.key, msg.correct).then(
         (review) => sendResponse({ ok: true, review }),

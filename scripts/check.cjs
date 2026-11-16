@@ -6,7 +6,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 if (manifest.manifest_version !== 3 || manifest.version !== pkg.version) throw Error('Manifest/package version mismatch');
 const html = fs.readFileSync(path.join(root, manifest.side_panel.default_path), 'utf8');
-const referenced = ["study-core.js", "study-store.js", manifest.background.service_worker, manifest.side_panel.default_path,
+const referenced = ["providers.js", "study-core.js", "study-store.js", manifest.background.service_worker, manifest.side_panel.default_path,
   ...manifest.content_scripts.flatMap(script => script.js), ...Object.values(manifest.icons),
   ...[...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1])];
 for (const file of new Set(referenced)) {

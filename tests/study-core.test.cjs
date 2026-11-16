@@ -44,7 +44,7 @@ test('only last-wrong cards are selected for mistake review; progress updates wi
  const first=core.recordAnswer({},'w:hello',false,10);
  const next=core.recordAnswer(first,'w:hello',true,20);
  assert.equal(first['w:hello'].correct,0);
- assert.deepEqual(next['w:hello'],{attempts:2,correct:1,lastCorrect:true,lastReviewedAt:20});
+ assert.deepEqual(next['w:hello'],{attempts:2,correct:1,lastCorrect:true,lastReviewedAt:20,dueAt:86400020,intervalDays:1,streak:1});
  assert.equal(core.createQuiz(cards,{mistakesOnly:true,progress:first}).length,1);
  assert.equal(core.createQuiz(cards,{mistakesOnly:true,progress:next}).length,0);
 });
@@ -72,4 +72,17 @@ test('Anki output has exactly two plain text fields per line even for multiline 
  assert.equal(tsv.trim().split('\n').length,1);
  assert.equal(tsv.trim().split('\t').length,2);
  assert.throws(()=>core.exportVocabulary(cards,{},'bogus'));
+});
+test('scheduled review grows on correct answers, retries mistakes after ten minutes, and migrates old counters',()=>{
+ const now=1000000,day=86400000;let progress={};
+ progress=core.recordAnswer(progress,'w:hello',true,now);assert.equal(progress['w:hello'].dueAt,now+day);
+ progress=core.recordAnswer(progress,'w:hello',true,now+day);assert.equal(progress['w:hello'].intervalDays,3);
+ progress=core.recordAnswer(progress,'w:hello',false,now+2*day);assert.equal(progress['w:hello'].dueAt,now+2*day+600000);assert.equal(progress['w:hello'].streak,0);
+ const old={'w:world':{attempts:5,correct:3,lastCorrect:true,lastReviewedAt:now}};
+ assert.equal(core.reviewFor(old,'w:world').dueAt,0);const migrated=core.recordAnswer(old,'w:world',true,now);assert.equal(migrated['w:world'].attempts,6);
+});
+test('due-only quiz includes unreviewed and overdue words but excludes future reviews',()=>{
+ const cards=core.buildLibrary(history),now=1000000;const progress=core.recordAnswer({},'w:hello',true,now);
+ assert.ok(core.createQuiz(cards,{dueOnly:true,progress,now:now+100}).every(question=>question.card.key!=='w:hello'));
+ assert.equal(core.createQuiz(cards,{dueOnly:true,progress,now:now+86400001}).length,cards.length);
 });

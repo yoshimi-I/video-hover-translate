@@ -34,15 +34,19 @@
       attempts,
       correct: Math.min(attempts, Math.max(0, Math.floor(time(value?.correct)))),
       lastCorrect: typeof value?.lastCorrect === 'boolean' ? value.lastCorrect : null,
-      lastReviewedAt: time(value?.lastReviewedAt)
+      lastReviewedAt: time(value?.lastReviewedAt),
+      dueAt: time(value?.dueAt),
+      intervalDays: Math.min(60, Math.floor(time(value?.intervalDays))),
+      streak: Math.min(6, Math.floor(time(value?.streak)))
     };
   }
 
-  function filterLibrary(cards, { query = '', kind = 'all', mistakesOnly = false, progress = {} } = {}) {
+  function filterLibrary(cards, { query = '', kind = 'all', mistakesOnly = false, progress = {}, dueOnly = false, now = Date.now() } = {}) {
     const needle = text(query).trim().toLocaleLowerCase();
     return cards.filter(card => (kind === 'all' || card.kind === kind)
       && (!needle || [card.headword, card.ja, card.title].some(value => value.toLocaleLowerCase().includes(needle)))
-      && (!mistakesOnly || reviewFor(progress, card.key).lastCorrect === false));
+      && (!mistakesOnly || reviewFor(progress, card.key).lastCorrect === false)
+      && (!dueOnly || reviewFor(progress, card.key).dueAt <= now));
   }
 
   function shuffled(items, random) {
@@ -54,8 +58,8 @@
     return copy;
   }
 
-  function createQuiz(cards, { limit = 10, random = Math.random, mistakesOnly = false, progress = {} } = {}) {
-    const eligible = filterLibrary(cards, { mistakesOnly, progress }).filter(card => card.ja);
+  function createQuiz(cards, { limit = 10, random = Math.random, mistakesOnly = false, progress = {}, dueOnly = false, now = Date.now() } = {}) {
+    const eligible = filterLibrary(cards, { mistakesOnly, progress, dueOnly, now }).filter(card => card.ja);
     const meanings = [...new Set(cards.map(card => card.ja).filter(Boolean))];
     const size = Number.isFinite(limit) ? Math.max(0, Math.min(50, Math.floor(limit))) : 10;
     return shuffled(eligible, random).slice(0, size).map(card => {
@@ -66,11 +70,16 @@
 
   function recordAnswer(progress, key, correct, now = Date.now()) {
     const previous = reviewFor(progress, key);
+    const intervals = [1, 3, 7, 14, 30, 60];
+    const intervalDays = correct ? intervals[Math.min(previous.streak, intervals.length - 1)] : 0;
     return { ...progress, [key]: {
       attempts: previous.attempts + 1,
       correct: previous.correct + (correct ? 1 : 0),
       lastCorrect: Boolean(correct),
-      lastReviewedAt: time(now)
+      lastReviewedAt: time(now),
+      dueAt: time(now) + (correct ? intervalDays * 86400000 : 600000),
+      intervalDays,
+      streak: correct ? Math.min(previous.streak + 1, 6) : 0
     } };
   }
 
@@ -93,9 +102,9 @@
       return words.map(word => `${field(word.headword)}\t${field(word.ja)}`).join('\n') + (words.length ? '\n' : '');
     }
     if (format !== 'csv') throw new Error('Unknown export format');
-    const header = ['英語', '日本語', '種類', '例文', '作品', '調べた回数', '初回日時', '最終日時', '回答数', '正解数'];
+    const header = ['英語', '日本語', '種類', '例文', '作品', '調べた回数', '初回日時', '最終日時', '回答数', '正解数', '次回復習日時'];
     const iso = at => at ? new Date(at).toISOString() : '';
-    const rows = words.map(word => [word.headword, word.ja, word.kind, word.sentence, word.title, word.count, iso(word.firstAt), iso(word.lastAt), word.review.attempts, word.review.correct]);
+    const rows = words.map(word => [word.headword, word.ja, word.kind, word.sentence, word.title, word.count, iso(word.firstAt), iso(word.lastAt), word.review.attempts, word.review.correct, iso(word.review.dueAt)]);
     return '\uFEFF' + [header, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
   }
 

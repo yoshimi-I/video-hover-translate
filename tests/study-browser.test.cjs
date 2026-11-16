@@ -24,7 +24,7 @@ async function mount(saved={lookups:history}) {
   const listeners=[];const event={addListener(){}};
   window.chrome={runtime:{sendMessage:async msg=>{try{return {ok:true,review:await reviewStore.record(msg.key,msg.correct)};}catch{return {ok:false,error:'storage'};}}},storage:{local:{get:async()=>structuredClone(stored),set:async updates=>{const changes={};for(const [key,value] of Object.entries(updates)){changes[key]={newValue:value,oldValue:stored[key]};stored[key]=value;}for(const fn of listeners)fn(changes,'local');}},sync:{get:async defaults=>defaults},session:{get:async()=>({})},onChanged:{addListener:fn=>listeners.push(fn)}},tabs:{query:async()=>[],onUpdated:event,onActivated:event}};
  },saved);
- for(const name of ['data/vocab-levels.js','study-core.js','study-store.js','sidepanel.js','study-ui.js']) {
+ for(const name of ['data/vocab-levels.js','providers.js','study-core.js','study-store.js','sidepanel.js','study-ui.js']) {
   const file=path.join(root,name);if(fs.existsSync(file))await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
  }
  await page.evaluate(()=>{window.reviewStore=new VHTReviewStore(chrome.storage.local);});
@@ -108,4 +108,27 @@ test('quiz does not claim that an answer was saved after storage failure',async(
   await page.locator('#next-question').click();
   const summary=await page.locator('#quiz-summary').textContent();assert.ok(summary.includes('保存できなかった回答が1件'));assert.ok(!summary.includes('回答を記録しました'));
  }finally{await page.close();}
+});
+test('sample demo works without a key, saves no answers, and restores real history when closed',async()=>{
+ const p=await mount({lookups:history});
+ try{
+  await p.locator('#show-study').click();await p.locator('#load-demo').click();await p.locator('#start-quiz').click();
+  const word=await p.locator('#quiz-word').textContent();assert.ok(word);await p.locator('#quiz-options button').first().click();await p.locator('#finish-quiz').click();
+  assert.equal(await p.evaluate(()=>stored['study-progress-v1']),undefined);assert.ok((await p.locator('#quiz-summary').textContent()).includes('保存しません'));
+  await p.locator('#exit-demo').click();await p.waitForFunction(()=>document.querySelector('#library-count').textContent.includes('全4語'));assert.equal(await p.evaluate(()=>stored.lookups.length),history.length);
+ }finally{await p.close();}
+});
+test('today review excludes future cards and includes legacy unscheduled history',async()=>{
+ const p=await mount({lookups:history,'study-progress-v1':{'w:hello':{attempts:1,correct:1,lastCorrect:true,lastReviewedAt:Date.now(),dueAt:Date.now()+86400000,streak:1,intervalDays:1}}});
+ try{await p.locator('#show-study').click();await p.locator('#review-mode').selectOption('due');await p.locator('#start-quiz').click();assert.ok((await p.locator('#quiz-position').textContent()).includes('/ 3問'));}finally{await p.close();}
+});
+test('leaving demo disables quiz and export until real storage has finished loading',async()=>{
+ const p=await mount({lookups:history});
+ try{
+  await p.locator('#show-study').click();await p.locator('#load-demo').click();
+  await p.evaluate(()=>{const previous=chrome.storage.local.get;chrome.storage.local.get=async keys=>{if(Array.isArray(keys)&&keys.includes('lookups'))await new Promise(resolve=>window.releaseRealHistory=resolve);return previous(keys);};});
+  await p.locator('#exit-demo').click();assert.equal(await p.locator('#start-quiz').isDisabled(),true);assert.equal(await p.locator('#export-vocabulary').isDisabled(),true);
+  await p.evaluate(()=>releaseRealHistory());await p.waitForFunction(()=>document.querySelector('#library-count').textContent.includes('全4語'));assert.equal(await p.locator('#start-quiz').isEnabled(),true);
+  assert.equal(await p.evaluate(()=>stored['study-progress-v1']),undefined);
+ }finally{await p.close();}
 });
