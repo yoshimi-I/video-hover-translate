@@ -1,0 +1,144 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0f19;
+  --card: #121a2b;
+  --card-2: #18223a;
+  --line: #24304b;
+  --text: #e8edf7;
+  --muted: #8a97b1;
+  --accent: #3b82f6;
+  --lv-A: #34d399;
+  --lv-B1: #38bdf8;
+  --lv-B2: #818cf8;
+  --lv-C: #f472b6;
+  --lv-phrase: #fbbf24;
+  --lv-out: #64748b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, "Hiragino Sans", sans-serif; }
+button { font: inherit; color: inherit; }
+h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); }
+.icon { flex: none; }
+.muted { margin: 0; color: var(--muted); font-size: 12px; }
+
+/* ヘッダー */
+.topbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: rgba(11, 15, 25, 0.92); backdrop-filter: blur(8px); }
+.title-block { flex: 1; min-width: 0; }
+.app { color: var(--muted); font-size: 10.5px; letter-spacing: 0.06em; }
+.work { overflow: hidden; font-size: 15px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.pill { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--card-2); color: var(--muted); font-size: 11px; white-space: nowrap; }
+.pill.live { color: #86efac; }
+.pill.live::before { content: "●"; margin-right: 4px; }
+.icon-btn { display: grid; flex: none; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--muted); cursor: pointer; }
+.icon-btn:hover { color: var(--text); }
+.icon-btn:hover { background: var(--card-2); }
+
+.view { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+.view[hidden] { display: none; }
+.card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.hint { color: var(--muted); font-size: 11px; }
+
+/* KPI */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.kpi { padding: 10px 6px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-align: center; }
+.kpi .value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kpi .label { display: flex; align-items: center; justify-content: center; gap: 3px; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+.kpi[data-kpi="lookedUp"] .value { color: var(--accent); }
+.kpi[data-kpi="b1Plus"] .value { color: var(--lv-B1); }
+
+/* レベル分布 */
+[data-group="A"] { --lv: var(--lv-A); }
+[data-group="B1"] { --lv: var(--lv-B1); }
+[data-group="B2"] { --lv: var(--lv-B2); }
+[data-group="C"] { --lv: var(--lv-C); }
+[data-group="out"] { --lv: var(--lv-out); }
+[data-group="phrase"] { --lv: var(--lv-phrase); }
+.levels { display: flex; flex-direction: column; gap: 2px; }
+.level { display: grid; grid-template-columns: 84px 1fr 34px; align-items: center; gap: 8px; padding: 5px 6px; border: 0; border-radius: 8px; background: none; text-align: left; cursor: pointer; opacity: 0.6; transition: opacity 0.15s, background 0.15s; }
+.level[aria-pressed="true"] { opacity: 1; }
+.level:hover { background: var(--card-2); }
+.level .name { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.level .name::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--lv); }
+.track { height: 8px; overflow: hidden; border-radius: 999px; background: var(--card-2); }
+.bar { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--lv); transition: width 0.3s; }
+.num { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* バッジ（一覧と最近調べた語で共通） */
+.badge { flex: none; padding: 1px 6px; border-radius: 6px; background: var(--lv, var(--lv-out)); color: #0b0f19; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+
+/* 最近調べた語 */
+.recent { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.recent li { display: grid; grid-template-columns: fit-content(55%) minmax(0, 1fr) auto auto; align-items: baseline; gap: 8px; }
+.recent .headword { overflow: hidden; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.recent .ja { overflow: hidden; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.recent .ago { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+/* 単語一覧 */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.search-box { position: relative; display: flex; flex: 1 1 100%; align-items: center; }
+.search-box .icon { position: absolute; left: 10px; color: var(--muted); pointer-events: none; }
+.search { width: 100%; padding: 7px 10px 7px 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); color: var(--text); font: inherit; }
+.search::placeholder { color: var(--muted); }
+.search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.toggles { display: flex; gap: 4px; margin-right: auto; }
+.toggle { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.toggle[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.segmented { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+.segmented button { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border: 0; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.segmented button[aria-pressed="true"] { background: var(--card-2); color: var(--text); }
+.message { margin: 0; padding: 18px 0; color: var(--muted); text-align: center; }
+.rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.row { padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: var(--card-2); }
+.row:hover { border-color: var(--line); }
+.row .head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.row .headword { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.row .ja { margin-top: 2px; }
+.foot { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.sentence { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.count { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.looked { display: inline-flex; color: var(--accent); }
+.looked[hidden] { display: none; }
+
+/* 設定 */
+.settings-head { display: flex; align-items: center; gap: 10px; }
+.settings-head h2 { font-size: 13px; color: var(--text); letter-spacing: 0; }
+.back { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; }
+.switch { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; cursor: pointer; }
+.switch input { margin-top: 3px; accent-color: var(--accent); }
+.field { margin: 10px 0; }
+.field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+.field input { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); color: var(--text); font: inherit; }
+.actions { display: flex; align-items: center; gap: 10px; }
+.primary { padding: 6px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
+#status { font-size: 12px; }
+.warn { color: #fbbf24; }
+.ok { color: #86efac; }
+.credits { color: var(--muted); font-size: 11.5px; }
+.credits ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* Persistent vocabulary and review */
+.main-tabs { display: flex; gap: 6px; padding: 10px 12px 0; }
+.main-tabs button, .secondary, select { border: 1px solid var(--line); background: var(--card-2); color: var(--text); border-radius: 8px; padding: 7px 10px; font: inherit; cursor: pointer; }
+.main-tabs button { flex: 1; }
+.main-tabs button[aria-pressed="true"] { border-color: var(--accent); color: #93c5fd; background: #172b4d; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, select:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.study-field { display: grid; gap: 4px; margin: 12px 0; color: var(--muted); }
+.study-field input { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); color: var(--text); }
+.study-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.study-actions label { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.study-actions select { max-width: 100%; min-width: 0; }
+.library-list { padding: 0; margin: 0; list-style: none; }
+.library-item { padding: 12px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.library-item:last-child { border-bottom: 0; }
+.library-word { font-size: 16px; font-weight: 700; margin: 0; }
+.library-meaning { margin: 3px 0 6px; }
+.library-context, .quiz-context { color: var(--muted); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.quiz-word { font-size: 25px; font-weight: 750; margin: 12px 0 5px; overflow-wrap: anywhere; }
+.quiz-options { display: grid; gap: 8px; margin: 12px 0; }
+.quiz-options button { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card-2); text-align: left; overflow-wrap: anywhere; }
+.quiz-options button[data-answer="correct"] { border-color: #34d399; color: #86efac; opacity: 1; }
+.quiz-options button[data-answer="wrong"] { border-color: #fb7185; color: #fda4af; opacity: 1; }
+#view-study [hidden] { display: none; }
+#view-study .message { overflow-wrap: anywhere; }

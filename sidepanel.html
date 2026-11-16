@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Video Hover Translate</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title-block">
+        <div class="app">Hover Translate</div>
+        <div id="work-title" class="work">Video Hover Translate</div>
+      </div>
+      <span id="status-pill" class="pill">再生ページ以外</span>
+      <button id="open-settings" class="icon-btn" title="設定" aria-label="設定"><i data-icon="settings" data-size="16"></i></button>
+    </header>
+
+    <nav class="main-tabs" aria-label="画面の切り替え">
+      <button id="show-dashboard" aria-pressed="true">視聴中</button>
+      <button id="show-study" aria-pressed="false">単語帳・クイズ</button>
+    </nav>
+    <main id="view-dashboard" class="view">
+      <section class="card">
+        <button id="check-connection" class="primary">接続を確認</button>
+        <p id="connection-status" class="message" role="status" style="white-space: pre-line" hidden></p>
+      </section>
+      <section id="kpis" class="kpis" aria-label="このタブの集計">
+        <div class="kpi" data-kpi="words"><div class="value">0</div><div class="label"><i data-icon="words" data-size="12"></i>見た語</div></div>
+        <div class="kpi" data-kpi="phrases"><div class="value">0</div><div class="label"><i data-icon="phrases" data-size="12"></i>熟語・選択</div></div>
+        <div class="kpi" data-kpi="lookedUp"><div class="value">0</div><div class="label"><i data-icon="lookedUp" data-size="12"></i>調べた</div></div>
+        <div class="kpi" data-kpi="b1Plus"><div class="value">—</div><div class="label"><i data-icon="rate" data-size="12"></i>B1 以上</div></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2><i data-icon="levels" data-size="13"></i>レベル分布</h2>
+          <span class="hint">押すと一覧を絞り込み</span>
+        </div>
+        <div id="levels" class="levels">
+          <button class="level" data-group="A"><span class="name">A1–A2</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+          <button class="level" data-group="B1"><span class="name">B1</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+          <button class="level" data-group="B2"><span class="name">B2</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+          <button class="level" data-group="C"><span class="name">C1–C2</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+          <button class="level" data-group="out"><span class="name">範囲外</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+          <button class="level" data-group="phrase"><span class="name">熟語・選択</span><span class="track"><span class="bar"></span></span><span class="num">0</span></button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2><i data-icon="recent" data-size="13"></i>最近調べた語</h2></div>
+        <ul id="recent" class="recent"></ul>
+        <p id="recent-empty" class="muted">まだありません。字幕の語にホバーして訳を開くと、ここに出ます。</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2><i data-icon="list" data-size="13"></i>単語一覧</h2>
+          <span id="list-count" class="hint"></span>
+        </div>
+        <div id="toolbar" class="toolbar">
+          <label class="search-box"><i data-icon="search"></i><input id="search" class="search" type="search" placeholder="検索（英語・日本語）" aria-label="単語一覧を検索" autocomplete="off" /></label>
+          <div class="toggles">
+            <button class="toggle" data-flag="lookedUpOnly" title="訳を開いた語だけ"><i data-icon="lookedUp" data-size="13"></i>調べた語</button>
+            <button class="toggle" data-flag="showProper" title="固有名詞も表示"><i data-icon="proper" data-size="13"></i>固有名詞</button>
+          </div>
+          <div id="sort" class="segmented" role="group" aria-label="並び">
+            <button data-sort="recent"><i data-icon="sortRecent" data-size="13"></i>新しい順</button>
+            <button data-sort="level"><i data-icon="sortLevel" data-size="13"></i>レベル順</button>
+          </div>
+        </div>
+        <p id="seen-message" class="message" hidden></p>
+        <ul id="seen-list" class="rows"></ul>
+      </section>
+    </main>
+
+    <main id="view-study" class="view" hidden>
+      <section class="card">
+        <div class="card-head"><h2>これまでに調べた語</h2><span id="library-count" class="hint"></span></div>
+        <p id="study-stats" class="muted"></p>
+        <label class="study-field">検索<input id="library-search" class="search" type="search" placeholder="英語・日本語・作品名" /></label>
+        <label class="study-field">種類<select id="library-kind"><option value="all">すべて</option><option value="word">単語</option><option value="phrase">熟語</option><option value="span">選択した範囲</option></select></label>
+        <p class="muted">全作品の履歴をまとめて表示します。同じ語は最新の訳にまとめます。</p>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>復習クイズ</h2></div>
+        <div class="study-actions">
+          <label>問題数 <select id="quiz-count"><option value="5">5問</option><option value="10" selected>10問</option><option value="20">20問</option></select></label>
+          <button id="start-quiz" class="primary" disabled>クイズを始める</button>
+        </div>
+        <label class="switch"><input id="mistakes-only" type="checkbox" /><span>前回間違えた語だけ</span></label>
+        <p id="quiz-summary" class="message" role="status">出題は検索・種類の絞り込みに従います。</p>
+        <div id="quiz-session" hidden>
+          <p id="quiz-position" class="hint"></p>
+          <p id="quiz-word" class="quiz-word"></p>
+          <p class="muted">日本語の意味は？</p>
+          <div id="quiz-options" class="quiz-options"></div>
+          <button id="reveal-answer" class="secondary" hidden>答えを見る</button>
+          <p id="quiz-feedback" class="message" role="status"></p>
+          <p id="quiz-context" class="quiz-context" hidden></p>
+          <div id="self-rate" class="study-actions" hidden><button id="remembered" class="secondary">覚えていた</button><button id="forgotten" class="secondary">まだ覚えていない</button></div>
+          <div class="study-actions"><button id="next-question" class="primary" hidden>次の問題</button><button id="finish-quiz" class="secondary">終了する</button></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>エクスポート</h2></div>
+        <div class="study-actions"><label>形式 <select id="export-format"><option value="csv">CSV（Excelなど）</option><option value="json">JSON（学習記録付き）</option><option value="anki">Anki用TSV（英語・日本語）</option></select></label><button id="export-vocabulary" class="primary" disabled>書き出す</button></div>
+        <p class="muted">検索・種類で絞り込んだ単語を書き出します。APIキーは含みません。</p>
+        <p id="export-status" class="message" role="status"></p>
+      </section>
+      <section class="card">
+        <p id="library-empty" class="muted">読み込み中…</p>
+        <ul id="library-list" class="library-list"></ul>
+        <button id="library-more" class="secondary" hidden>さらに表示</button>
+      </section>
+    </main>
+    <main id="view-settings" class="view" hidden>
+      <div class="settings-head">
+        <button id="close-settings" class="back"><i data-icon="back"></i>戻る</button>
+        <h2>設定</h2>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2><i data-icon="captions" data-size="13"></i>字幕</h2></div>
+        <label class="switch"><input type="checkbox" id="enabled" /><span>字幕のホバー翻訳を有効にする</span></label>
+        <label class="switch"><input type="checkbox" id="pauseOnHover" /><span>ポップアップを開いている間は動画を一時停止する</span></label>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2><i data-icon="key" data-size="13"></i>翻訳 API</h2></div>
+        <div class="field">
+          <label for="apiUrl">API エンドポイント URL</label>
+          <input type="text" id="apiUrl" placeholder="https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod/translate" />
+        </div>
+        <div class="field">
+          <label for="apiKey">API キー</label>
+          <input type="password" id="apiKey" autocomplete="off" />
+        </div>
+        <div class="actions"><button id="save" class="primary">保存</button><span id="status"></span></div>
+      </section>
+
+      <footer class="credits">
+        <p>単語のレベルは次の語彙表によります。TOEIC の点数は、ETS が公表している CEFR との対応から出した目安です。</p>
+        <ul>
+          <li>CEFR-J Wordlist Version 1.5（東京外国語大学 投野由紀夫研究室）</li>
+          <li>Octanove Vocabulary Profile C1/C2 ver 1.0（Octanove Labs、CC BY-SA 4.0）</li>
+        </ul>
+      </footer>
+    </main>
+    <script src="data/vocab-levels.js"></script>
+    <script src="study-core.js"></script>
+    <script src="sidepanel.js"></script>
+    <script src="study-ui.js"></script>
+  </body>
+</html>
