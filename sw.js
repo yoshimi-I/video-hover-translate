@@ -1,4 +1,5 @@
 "use strict";
+importScripts("study-core.js", "study-store.js");
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -20105,6 +20106,7 @@ ${normalizeText(text)}`);
     remove: (keys) => chrome.storage.session.remove(keys)
   });
   var lookups = new LookupLog(local);
+  var studyReviews = new globalThis.VHTReviewStore(local);
   var warn = (label) => (err) => console.warn(label, err);
   function enableSidePanel() {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(warn("sidePanel"));
@@ -20118,6 +20120,13 @@ ${normalizeText(text)}`);
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const msg = message;
     const tabId = sender.tab?.id;
+    if (msg?.type === "studyAnswer") {
+      studyReviews.record(msg.key, msg.correct).then(
+        (review) => sendResponse({ ok: true, review }),
+        () => sendResponse({ ok: false, error: "storage" })
+      );
+      return true;
+    }
     if (msg?.type === "translate") {
       service.translate(msg).then(
         (reply) => {

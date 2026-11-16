@@ -6,7 +6,7 @@
   const $ = id => document.getElementById(id);
   const names = { word: '単語', phrase: '熟語', span: '選択範囲' };
   let cards = [], progress = {}, pageSize = 50, loadSeq = 0;
-  let questions = [], index = 0, score = 0, answered = 0, locked = false, saving = false;
+  let questions = [], index = 0, score = 0, answered = 0, saveFailures = 0, locked = false, saving = false;
 
   function filtered() {
     return core.filterLibrary(cards, { query: $('library-search').value, kind: $('library-kind').value });
@@ -104,10 +104,11 @@
     showContext(card);
     $('finish-quiz').disabled = true;
     try {
-      const saved = await chrome.storage.local.get(PROGRESS_KEY);
-      progress = core.recordAnswer(saved[PROGRESS_KEY] ?? progress, card.key, correct);
-      await chrome.storage.local.set({ [PROGRESS_KEY]: progress });
+      const reply = await chrome.runtime.sendMessage({ type: 'studyAnswer', key: card.key, correct });
+      if (!reply?.ok || !reply.review) throw new Error('Review was not saved');
+      progress = { ...progress, [card.key]: reply.review };
     } catch {
+      saveFailures++;
       $('quiz-feedback').textContent += '\nこの回答の保存に失敗しました。サイドパネルを開き直してください。';
     } finally {
       saving = false;
@@ -120,7 +121,7 @@
   }
   function finish() {
     if (saving) return;
-    $('quiz-summary').textContent = `今回の結果: ${score} / ${answered}問正解${answered ? `（${Math.round(score / answered * 100)}%）` : ''}。${answered ? '回答を記録しました。' : 'まだ回答していません。'}`;
+    $('quiz-summary').textContent = `今回の結果: ${score} / ${answered}問正解${answered ? `（${Math.round(score / answered * 100)}%）` : ''}。${saveFailures ? `保存できなかった回答が${saveFailures}件あります。` : answered ? '回答を記録しました。' : 'まだ回答していません。'}`;
     questions = [];
     $('quiz-session').hidden = true;
     updateControls();
@@ -131,7 +132,7 @@
       $('quiz-summary').textContent = '出題できる語がありません。検索条件や「前回間違えた語だけ」を変更してください。';
       return;
     }
-    index = score = answered = 0;
+    index = score = answered = saveFailures = 0;
     $('quiz-summary').textContent = '英語に合う日本語を選んでください。訳が1種類だけの場合は答えを見て自己採点します。';
     $('quiz-session').hidden = false;
     renderQuestion();

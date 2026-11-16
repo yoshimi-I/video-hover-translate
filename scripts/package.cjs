@@ -5,7 +5,7 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 require('./check.cjs');
 const version = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'))).version;
-const files = ['manifest.json','content.js','sw.js','sidepanel.js','study-core.js','study-ui.js',
+const files = ['manifest.json','content.js','sw.js','sidepanel.js','study-core.js','study-store.js','study-ui.js',
   'sidepanel.html','sidepanel.css','icons','data','licenses','LICENSE','README.md','PRIVACY.md',
   'THIRD_PARTY_NOTICES.md','CONTRIBUTING.md','SECURITY.md','docs/API.md'];
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'vht-package-'));

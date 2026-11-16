@@ -22,11 +22,12 @@ async function mount(saved={lookups:history}) {
  await page.evaluate(saved=>{
   window.stored={...saved,apiUrl:'https://private.invalid/translate',apiKey:'PRIVATE_TEST_KEY'};
   const listeners=[];const event={addListener(){}};
-  window.chrome={storage:{local:{get:async()=>structuredClone(stored),set:async updates=>{const changes={};for(const [key,value] of Object.entries(updates)){changes[key]={newValue:value,oldValue:stored[key]};stored[key]=value;}for(const fn of listeners)fn(changes,'local');}},sync:{get:async defaults=>defaults},session:{get:async()=>({})},onChanged:{addListener:fn=>listeners.push(fn)}},tabs:{query:async()=>[],onUpdated:event,onActivated:event}};
+  window.chrome={runtime:{sendMessage:async msg=>{try{return {ok:true,review:await reviewStore.record(msg.key,msg.correct)};}catch{return {ok:false,error:'storage'};}}},storage:{local:{get:async()=>structuredClone(stored),set:async updates=>{const changes={};for(const [key,value] of Object.entries(updates)){changes[key]={newValue:value,oldValue:stored[key]};stored[key]=value;}for(const fn of listeners)fn(changes,'local');}},sync:{get:async defaults=>defaults},session:{get:async()=>({})},onChanged:{addListener:fn=>listeners.push(fn)}},tabs:{query:async()=>[],onUpdated:event,onActivated:event}};
  },saved);
- for(const name of ['data/vocab-levels.js','study-core.js','sidepanel.js','study-ui.js']) {
+ for(const name of ['data/vocab-levels.js','study-core.js','study-store.js','sidepanel.js','study-ui.js']) {
   const file=path.join(root,name);if(fs.existsSync(file))await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
  }
+ await page.evaluate(()=>{window.reviewStore=new VHTReviewStore(chrome.storage.local);});
  await page.waitForFunction(()=>document.body.dataset.ready==='1');
  return page;
 }
@@ -96,5 +97,15 @@ test('one saved word uses a self-rated flashcard and renders subtitle text safel
   await page.locator('#reveal-answer').click();assert.ok((await page.locator('#quiz-feedback').textContent()).includes('意味'));
   await page.locator('#remembered').click();await page.waitForFunction(()=>Object.values(stored['study-progress-v1']??{}).some(r=>r.correct===1));
   assert.equal(await page.locator('#quiz-word img').count(),0);
+ }finally{await page.close();}
+});
+test('quiz does not claim that an answer was saved after storage failure',async()=>{
+ const page=await mount({lookups:history.slice(0,1)});
+ try{
+  await page.evaluate(()=>{chrome.storage.local.set=async()=>{throw Error('quota');};});
+  await page.locator('#show-study').click();await page.locator('#start-quiz').click();await page.locator('#reveal-answer').click();await page.locator('#remembered').click();
+  await page.waitForFunction(()=>document.querySelector('#quiz-feedback').textContent.includes('保存に失敗'));
+  await page.locator('#next-question').click();
+  const summary=await page.locator('#quiz-summary').textContent();assert.ok(summary.includes('保存できなかった回答が1件'));assert.ok(!summary.includes('回答を記録しました'));
  }finally{await page.close();}
 });

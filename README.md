@@ -51,7 +51,7 @@ Netflix / Disney+とは独立した非公式プロジェクトです。画像だ
 
 ## 開発
 
-Node.js 20以上が必要です。macOSではインストール済みのGoogle Chromeでブラウザーテストを実行します。
+Node.js 20以上が必要です。ZIP作成にはmacOS / Linuxの `zip` コマンドを使います。macOSではインストール済みのGoogle Chromeでブラウザーテストを実行します。
 
 ```sh
 npm ci
@@ -74,6 +74,7 @@ content.js             字幕検出・表示・動画操作
 sw.js                  翻訳API・キャッシュ・履歴保存（Zod同梱）
 sidepanel.js           視聴中の集計・設定（Lucide同梱）
 study-core.js          履歴の集約、クイズ、エクスポートの純粋関数
+study-store.js         複数ウィンドウの回答を直列に保存
 study-ui.js            単語帳・クイズの画面制御
 sidepanel.html/.css    サイドパネル
  data/vocab-levels.js  語彙レベルデータ（別ライセンス）
